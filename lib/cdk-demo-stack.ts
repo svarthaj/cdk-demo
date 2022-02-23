@@ -1,7 +1,8 @@
-import { Stack, StackProps, RemovalPolicy, Duration } from 'aws-cdk-lib';
+import { Stack, StackProps, RemovalPolicy, Duration, CfnOutput } from 'aws-cdk-lib';
 import {AssetCode, Function, Runtime} from "aws-cdk-lib/aws-lambda";
 import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import {Effect, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import { Vpc, SecurityGroup } from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
 import { CfnApi, CfnDeployment, CfnIntegration, CfnRoute, CfnStage } from 'aws-cdk-lib/aws-apigatewayv2';
 
@@ -10,11 +11,38 @@ export class CdkDemoStack extends Stack {
     super(scope, id, props);
     
     /**
+     * Create VPC
+     */
+     const vpc = new Vpc(this, 'VpcDemo', {
+      cidr: '10.192.0.0/16',
+      maxAzs: 2,
+      natGateways: 0,
+      enableDnsHostnames: true,
+      enableDnsSupport: true
+    });
+
+    new CfnOutput(this, 'VpcId', {
+      value: vpc.vpcId,
+      description: 'Demo VPC ID',
+      exportName: 'VpcDemoStack:vpcId'
+    });
+
+    /**
+     * Add SG
+     */
+     const securityGroup = new SecurityGroup(this, 'SecurityGroup', {
+      vpc,
+      description: 'Allow all ingress/egress',
+      allowAllOutbound: true
+    });
+
+    /**
      * Initialise APIG
      */
      const name = id + '-api';
      const api = new CfnApi(this, name, {
        name: 'CdkDemoApi',
+       protocolType: 'HTTP',
        corsConfiguration: {
          allowHeaders: [
            'Content-Type',
@@ -24,7 +52,7 @@ export class CdkDemoStack extends Stack {
          ],
          allowMethods: [
            'GET', 'PUT', 'DELETE'
-         ],
+         ]
        }
      });
     
@@ -98,21 +126,24 @@ export class CdkDemoStack extends Stack {
       apiId: api.ref,
       integrationType: 'AWS_PROXY',
       integrationUri: getFunc.functionArn,
-      credentialsArn: role.roleArn
+      credentialsArn: role.roleArn,
+      payloadFormatVersion: '2.0'
     })
 
     const putIntegration = new CfnIntegration(this, 'cdk-demo-put-lambda-integration', {
       apiId: api.ref,
       integrationType: 'AWS_PROXY',
       integrationUri: putFunc.functionArn,
-      credentialsArn: role.roleArn
+      credentialsArn: role.roleArn,
+      payloadFormatVersion: '2.0'
     })
 
     const deleteIntegration = new CfnIntegration(this, 'cdk-demo-delete-lambda-integration', {
       apiId: api.ref,
       integrationType: 'AWS_PROXY',
       integrationUri: deleteFunc.functionArn,
-      credentialsArn: role.roleArn
+      credentialsArn: role.roleArn,
+      payloadFormatVersion: '2.0'
     })
 
     /**
@@ -121,28 +152,28 @@ export class CdkDemoStack extends Stack {
     const putRoute = new CfnRoute(this, "put-route", {
       apiId: api.ref,
       routeKey: 'PUT /environments',
-      authorizationType: 'NONE',
+      authorizationType: 'AWS_IAM',
       target: `integrations/${putIntegration.ref}`,
     });
 
     const getAllRoute = new CfnRoute(this, "get-all-route", {
       apiId: api.ref,
       routeKey: 'GET /environments',
-      authorizationType: 'NONE',
+      authorizationType: 'AWS_IAM',
       target: `integrations/${getIntegration.ref}`,
     });
 
     const getRoute = new CfnRoute(this, 'get-route', {
       apiId: api.ref,
       routeKey: 'GET /environments/{envName}',
-      authorizationType: 'NONE',
+      authorizationType: 'AWS_IAM',
       target: `integrations/${getIntegration.ref}`,
     });
 
     const deleteRoute = new CfnRoute(this, "delete-route", {
       apiId: api.ref,
       routeKey: 'DELETE /environments/{envName}',
-      authorizationType: 'NONE',
+      authorizationType: 'AWS_IAM',
       target: `integrations/${deleteIntegration.ref}`,
     });
 
