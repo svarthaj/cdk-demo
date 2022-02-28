@@ -2,7 +2,7 @@ import { Stack, StackProps, RemovalPolicy, Duration, CfnOutput } from 'aws-cdk-l
 import {AssetCode, Function, Runtime} from "aws-cdk-lib/aws-lambda";
 import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import {Effect, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
-import { Vpc, SecurityGroup } from 'aws-cdk-lib/aws-ec2';
+import { Vpc, SecurityGroup, Peer, Port, SubnetSelection } from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
 import { CfnApi, CfnDeployment, CfnIntegration, CfnRoute, CfnStage } from 'aws-cdk-lib/aws-apigatewayv2';
 
@@ -16,15 +16,9 @@ export class CdkDemoStack extends Stack {
      const vpc = new Vpc(this, 'VpcDemo', {
       cidr: '10.192.0.0/16',
       maxAzs: 2,
-      natGateways: 0,
+      natGateways: 1,
       enableDnsHostnames: true,
       enableDnsSupport: true
-    });
-
-    new CfnOutput(this, 'VpcId', {
-      value: vpc.vpcId,
-      description: 'Demo VPC ID',
-      exportName: 'VpcDemoStack:vpcId'
     });
 
     /**
@@ -76,7 +70,10 @@ export class CdkDemoStack extends Stack {
       handler: 'lambda-get-env.getEnv',
       runtime: Runtime.NODEJS_14_X,
       timeout: Duration.seconds(300),
-      memorySize: 256
+      memorySize: 256,
+      vpc: vpc,
+      vpcSubnets: { subnets: vpc.privateSubnets } as SubnetSelection,
+      securityGroups: [securityGroup]
     })
 
     dynamoTable.grantReadWriteData(getFunc);
@@ -86,7 +83,10 @@ export class CdkDemoStack extends Stack {
       handler: 'lambda-put-env.putEnv',
       runtime: Runtime.NODEJS_14_X,
       timeout: Duration.seconds(300),
-      memorySize: 256
+      memorySize: 256,
+      vpc: vpc,
+      vpcSubnets: { subnets: vpc.privateSubnets } as SubnetSelection,
+      securityGroups: [securityGroup]
     })
 
     dynamoTable.grantReadWriteData(putFunc);
@@ -96,7 +96,10 @@ export class CdkDemoStack extends Stack {
       handler: 'lambda-delete-env.deleteEnv',
       runtime: Runtime.NODEJS_14_X,
       timeout: Duration.seconds(300),
-      memorySize: 256
+      memorySize: 256,
+      vpc: vpc,
+      vpcSubnets: { subnets: vpc.privateSubnets } as SubnetSelection,
+      securityGroups: [securityGroup]
     })
 
     dynamoTable.grantReadWriteData(deleteFunc);
