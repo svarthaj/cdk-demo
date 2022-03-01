@@ -2,7 +2,7 @@ import { Stack, StackProps, RemovalPolicy, Duration, CfnOutput } from 'aws-cdk-l
 import {AssetCode, Function, Runtime} from "aws-cdk-lib/aws-lambda";
 import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import {Effect, PolicyStatement, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
-import { Vpc, SecurityGroup, Peer, Port, SubnetSelection } from 'aws-cdk-lib/aws-ec2';
+import { Vpc, SecurityGroup, SubnetSelection } from 'aws-cdk-lib/aws-ec2';
 import { Construct } from 'constructs';
 import { CfnApi, CfnDeployment, CfnIntegration, CfnRoute, CfnStage } from 'aws-cdk-lib/aws-apigatewayv2';
 
